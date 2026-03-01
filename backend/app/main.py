@@ -1,25 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import Config
+from app.config import settings
 from app.api import router as api_router
+from app.database import engine, Base
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title=Config.API_TITLE,
+    title=settings.API_TITLE,
     description="Smart scan storage: OCR, search by names/dates/amounts, auto-stitch pages",
-    version=Config.API_VERSION,
+    version=settings.API_VERSION,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=Config.CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=Config.API_PREFIX)
-
+app.include_router(api_router, prefix=settings.API_PREFIX)
 
 @app.get("/health")
 def health():
