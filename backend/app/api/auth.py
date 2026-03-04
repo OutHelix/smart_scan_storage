@@ -26,7 +26,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     new_user = crud.create_user(db=db, user=user)
     return new_user
 
-@router.post("/login")
+@router.post("/login", response_model=schemas.LoginResponse)
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = crud.authenticate_user(db, username=user_credentials.username, password=user_credentials.password)
     if not user:
@@ -34,5 +34,4 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
         )
-
-    return {"message": "Login successful", "user": schemas.UserOut.model_validate(user)}
+    return schemas.LoginResponse(message="Login successful", user=schemas.UserOut.model_validate(user))

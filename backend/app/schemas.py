@@ -18,3 +18,8 @@ class UserOut(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class LoginResponse(BaseModel):
+    message: str
+    user: UserOut
