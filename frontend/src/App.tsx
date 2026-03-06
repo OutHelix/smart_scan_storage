@@ -8,6 +8,7 @@ import { StitchPage } from './pages/StitchPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AccountPage } from './pages/AccountPage'
+import { clearToken } from './api/auth'
 import type { User } from './types'
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
         const parsed = JSON.parse(stored) as User
         setUser(parsed)
       } catch {
-        // ignore parse errors
+        // ignore
       }
     }
   }, [])
@@ -33,15 +34,16 @@ function App() {
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('sss_user')
+    clearToken()
   }
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout user={user} onLogout={handleLogout} />}>
-          <Route index element={<HomePage />} />
-          <Route path="upload" element={<UploadPage />} />
-          <Route path="doc/:id" element={<DocumentPage />} />
+          <Route index element={<HomePage user={user} />} />
+          <Route path="upload" element={<UploadPage user={user} />} />
+          <Route path="doc/:id" element={<DocumentPage user={user} />} />
           <Route path="stitch" element={<StitchPage />} />
           <Route path="login" element={<LoginPage onLogin={handleLogin} />} />
           <Route path="register" element={<RegisterPage onLogin={handleLogin} />} />

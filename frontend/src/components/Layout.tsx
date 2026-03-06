@@ -7,9 +7,10 @@ type LayoutProps = {
 }
 
 const nav = [
-  { to: '/', label: 'Главная' },
-  { to: '/upload', label: 'Загрузка' },
-  { to: '/stitch', label: 'Склейка' },
+  { to: '/', label: 'Home' },
+  { to: '/upload', label: 'Upload' },
+  { to: '/account', label: 'Account' },
+  { to: '/stitch', label: 'Stitch' },
 ]
 
 export function Layout({ user, onLogout }: LayoutProps) {
@@ -37,13 +38,13 @@ export function Layout({ user, onLogout }: LayoutProps) {
                 {user.username.charAt(0).toUpperCase()}
               </div>
               <div className="layout-user-info">
-                <div className="layout-user-name">{user.username}</div>
+                <Link to="/account" className="layout-user-name">{user.username}</Link>
                 <button
                   type="button"
-                  className="wf-btn wf-btn--ghost"
+                  className="btn btn--header"
                   onClick={onLogout}
                 >
-                  Выйти
+                  Log out
                 </button>
               </div>
             </>
@@ -53,13 +54,13 @@ export function Layout({ user, onLogout }: LayoutProps) {
                 to="/login"
                 className={location.pathname === '/login' ? 'layout-nav-link active' : 'layout-nav-link'}
               >
-                Вход
+                Log in
               </Link>
               <Link
                 to="/register"
                 className={location.pathname === '/register' ? 'layout-nav-link active' : 'layout-nav-link'}
               >
-                Регистрация
+                Sign up
               </Link>
             </div>
           )}

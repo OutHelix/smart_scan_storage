@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from pathlib import Path
+
 from app.config import settings
 from app.api import router as api_router
 from app.database import engine, Base
 
 Base.metadata.create_all(bind=engine)
+Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title=settings.API_TITLE,

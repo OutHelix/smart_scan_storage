@@ -1,6 +1,6 @@
 const API_BASE = '/api/v1'
 
-/** Преобразует detail из ответа API (строка или массив ошибок валидации) в одну строку для UI */
+/** Normalise API error detail (string or validation array) into a single message for UI */
 export function getErrorMessage(data: unknown, fallback: string): string {
   if (data == null || typeof data !== 'object') return fallback
   const d = data as { detail?: unknown }
@@ -13,7 +13,27 @@ export function getErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
-export async function login(username: string, password: string) {
+const TOKEN_KEY = 'sss_token'
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+export interface LoginResult {
+  message: string
+  user: { id: number; username: string; email: string; created_at?: string }
+  access_token: string
+}
+
+export async function login(username: string, password: string): Promise<LoginResult> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -21,7 +41,7 @@ export async function login(username: string, password: string) {
   })
   const data = await res.json().catch(() => null)
   if (!res.ok) throw new Error(getErrorMessage(data, 'Ошибка входа'))
-  return data as { message: string; user: { id: number; username: string; email: string; created_at?: string } }
+  return data as LoginResult
 }
 
 export async function register(username: string, email: string, password: string) {

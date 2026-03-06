@@ -23,3 +23,17 @@ class UserOut(UserBase):
 class LoginResponse(BaseModel):
     message: str
     user: UserOut
+    access_token: str
+
+
+class DocumentOut(BaseModel):
+    id: int
+    user_id: int
+    original_filename: str
+    stored_filename: str
+    mime_type: str | None
+    file_size: int | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

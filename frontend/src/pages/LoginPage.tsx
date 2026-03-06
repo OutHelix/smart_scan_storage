@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '../types'
-import { login } from '../api/auth'
+import { login, setToken } from '../api/auth'
 
 type LoginPageProps = {
   onLogin: (user: User) => void
@@ -19,23 +19,24 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setError(null)
     setLoading(true)
     try {
-      const { user } = await login(username, password)
+      const { user, access_token } = await login(username, password)
+      setToken(access_token)
       onLogin(user)
       navigate('/account')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка входа')
+      setError(err instanceof Error ? err.message : 'Log in failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="wf">
-      <div className="auth-card">
-        <div className="auth-title">Вход</div>
+    <div className="page page--center">
+      <div className="card card--narrow card--auth">
+        <h1 className="card-title">Log in</h1>
         <form onSubmit={handleSubmit}>
           <div className="auth-field">
-            <label className="auth-label" htmlFor="login-username">Имя пользователя</label>
+            <label className="auth-label" htmlFor="login-username">Username</label>
             <input
               id="login-username"
               className="auth-input"
@@ -46,7 +47,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             />
           </div>
           <div className="auth-field">
-            <label className="auth-label" htmlFor="login-password">Пароль</label>
+            <label className="auth-label" htmlFor="login-password">Password</label>
             <input
               id="login-password"
               type="password"
@@ -58,11 +59,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             />
           </div>
           <div className="auth-actions">
-            <button type="submit" className="wf-btn" disabled={loading}>
-              {loading ? 'Входим…' : 'Войти'}
+            <button type="submit" className="btn btn--primary" disabled={loading}>
+              {loading ? 'Signing in…' : 'Log in'}
             </button>
             <span className="auth-meta">
-              Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+              No account? <Link to="/register">Sign up</Link>
             </span>
           </div>
           {error && <div className="auth-error">{error}</div>}
@@ -71,4 +72,3 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     </div>
   )
 }
-

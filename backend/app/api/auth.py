@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import schemas, crud
 from app.database import get_db
+from app.core.security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -34,4 +35,9 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
         )
-    return schemas.LoginResponse(message="Login successful", user=schemas.UserOut.model_validate(user))
+    access_token = create_access_token(user_id=user.id)
+    return schemas.LoginResponse(
+        message="Login successful",
+        user=schemas.UserOut.model_validate(user),
+        access_token=access_token,
+    )

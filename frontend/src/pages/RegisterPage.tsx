@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '../types'
-import { register as registerApi } from '../api/auth'
+import { register as registerApi, login, setToken } from '../api/auth'
 
 type RegisterPageProps = {
   onLogin: (user: User) => void
@@ -20,23 +20,25 @@ export function RegisterPage({ onLogin }: RegisterPageProps) {
     setError(null)
     setLoading(true)
     try {
-      const user = await registerApi(username, email, password)
+      await registerApi(username, email, password)
+      const { user, access_token } = await login(username, password)
+      setToken(access_token)
       onLogin(user)
       navigate('/account')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка регистрации')
+      setError(err instanceof Error ? err.message : 'Sign up failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="wf">
-      <div className="auth-card">
-        <div className="auth-title">Регистрация</div>
+    <div className="page page--center">
+      <div className="card card--narrow card--auth">
+        <h1 className="card-title">Sign up</h1>
         <form onSubmit={handleSubmit}>
           <div className="auth-field">
-            <label className="auth-label" htmlFor="register-username">Имя пользователя</label>
+            <label className="auth-label" htmlFor="register-username">Username</label>
             <input
               id="register-username"
               className="auth-input"
@@ -59,7 +61,7 @@ export function RegisterPage({ onLogin }: RegisterPageProps) {
             />
           </div>
           <div className="auth-field">
-            <label className="auth-label" htmlFor="register-password">Пароль</label>
+            <label className="auth-label" htmlFor="register-password">Password</label>
             <input
               id="register-password"
               type="password"
@@ -71,11 +73,11 @@ export function RegisterPage({ onLogin }: RegisterPageProps) {
             />
           </div>
           <div className="auth-actions">
-            <button type="submit" className="wf-btn" disabled={loading}>
-              {loading ? 'Регистрируем…' : 'Зарегистрироваться'}
+            <button type="submit" className="btn btn--primary" disabled={loading}>
+              {loading ? 'Creating account…' : 'Sign up'}
             </button>
             <span className="auth-meta">
-              Уже есть аккаунт? <Link to="/login">Войти</Link>
+              Already have an account? <Link to="/login">Log in</Link>
             </span>
           </div>
           {error && <div className="auth-error">{error}</div>}
@@ -84,4 +86,3 @@ export function RegisterPage({ onLogin }: RegisterPageProps) {
     </div>
   )
 }
-
