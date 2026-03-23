@@ -4,11 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.config import settings
+from app import crud
 from app.api import router as api_router
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 
 Base.metadata.create_all(bind=engine)
 Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+with SessionLocal() as db:
+    crud.ensure_default_categories(db)
 
 app = FastAPI(
     title=settings.API_TITLE,

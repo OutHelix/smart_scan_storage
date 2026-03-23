@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { User } from '../types'
-import { uploadDocument } from '../api/documents'
+import type { Category, User } from '../types'
+import { listCategories, uploadDocument } from '../api/documents'
 
 const ALLOWED = '.pdf,.jpg,.jpeg,.png,.gif,.webp'
 
@@ -11,6 +11,10 @@ type UploadPageProps = {
 
 export function UploadPage({ user }: UploadPageProps) {
   const [files, setFiles] = useState<File[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [loadingCategories, setLoadingCategories] = useState(false)
+  const [categoriesError, setCategoriesError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -42,6 +46,19 @@ export function UploadPage({ user }: UploadPageProps) {
     e.target.value = ''
   }, [])
 
+  useEffect(() => {
+    if (!user) return
+    setLoadingCategories(true)
+    setCategoriesError(null)
+    listCategories()
+      .then((data) => {
+        setCategories(data)
+        setCategoryId(data[0]?.id ?? null)
+      })
+      .catch((err) => setCategoriesError(err instanceof Error ? err.message : 'Failed to load categories'))
+      .finally(() => setLoadingCategories(false))
+  }, [user])
+
   const startUpload = async () => {
     if (!user || files.length === 0) return
     setUploading(true)
@@ -51,7 +68,7 @@ export function UploadPage({ user }: UploadPageProps) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       try {
-        await uploadDocument(file)
+        await uploadDocument(file, categoryId ?? undefined)
         next.push({ name: file.name, done: true })
         successfulIndexes.push(i)
       } catch (err) {
@@ -112,6 +129,24 @@ export function UploadPage({ user }: UploadPageProps) {
           Drag files here or click to select
         </label>
         <p className="dropzone-hint">PDF, JPG, PNG, GIF, WEBP</p>
+      </div>
+      <div className="upload-category">
+        <label htmlFor="category-select" className="dropzone-hint">Category</label>
+        <select
+          id="category-select"
+          className="upload-category-select"
+          value={categoryId ?? ''}
+          onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+          disabled={loadingCategories || categories.length === 0}
+        >
+          {categories.length === 0 && <option value="">No categories</option>}
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        {categoriesError && <p className="page-error">{categoriesError}</p>}
       </div>
       {uploadError && <p className="page-error">{uploadError}</p>}
       {files.length > 0 && (

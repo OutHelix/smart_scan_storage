@@ -73,6 +73,7 @@ export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps)
         )}
       </div>
       <div className="doc-card-name">{doc.original_filename}</div>
+      {doc.category && <div className="doc-card-category">{doc.category.name}</div>}
       <div className="doc-card-meta">
         {formatDate(doc.created_at)}
         {doc.file_size != null && ` · ${formatSize(doc.file_size)}`}

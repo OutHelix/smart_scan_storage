@@ -5,6 +5,11 @@ export interface User {
   created_at?: string
 }
 
+export interface Category {
+  id: number
+  name: string
+}
+
 export interface Document {
   id: number
   user_id: number
@@ -13,5 +18,6 @@ export interface Document {
   mime_type: string | null
   file_size: number | null
   created_at: string
+  category: Category | null
 }
 

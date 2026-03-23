@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -28,6 +28,7 @@ def _allowed_file(filename: str) -> bool:
 @router.post("/upload", response_model=schemas.DocumentOut)
 def upload_document(
     file: UploadFile = File(...),
+    category_id: int | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -47,6 +48,8 @@ def upload_document(
             f.write(content)
     except OSError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save file")
+    if category_id is not None and not crud.get_category_by_id(db, category_id=category_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category not found")
     mime_type = file.content_type
     doc = crud.create_document(
         db=db,
@@ -55,6 +58,7 @@ def upload_document(
         stored_filename=stored_name,
         mime_type=mime_type,
         file_size=file_size,
+        category_id=category_id,
     )
     return doc
 

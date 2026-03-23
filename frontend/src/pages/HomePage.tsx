@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { User } from '../types'
-import type { Document } from '../types'
-import { listDocuments } from '../api/documents'
+import type { Category, Document } from '../types'
+import { listCategories, listDocuments } from '../api/documents'
 import { DocumentCard } from '../components/DocumentCard'
 
 type HomePageProps = {
@@ -22,6 +22,8 @@ function formatSize(bytes: number | null) {
 
 export function HomePage({ user }: HomePageProps) {
   const [docs, setDocs] = useState<Document[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [loading, setLoading] = useState(!!user)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,11 +40,20 @@ export function HomePage({ user }: HomePageProps) {
   useEffect(() => {
     if (!user) {
       setDocs([])
+      setCategories([])
       setLoading(false)
       return
     }
     loadDocuments()
+    listCategories()
+      .then(setCategories)
+      .catch(() => {})
   }, [user])
+
+  const filteredDocs =
+    selectedCategoryId === null
+      ? docs
+      : docs.filter((d) => d.category?.id === selectedCategoryId)
 
   if (!user) {
     return (
@@ -63,7 +74,25 @@ export function HomePage({ user }: HomePageProps) {
     <div className="page">
       <div className="page-head">
         <h1 className="page-title">My documents</h1>
-        <Link to="/upload" className="btn btn--primary">Upload</Link>
+        <div className="page-head-actions">
+          {categories.length > 0 && (
+            <select
+              className="page-category-select"
+              value={selectedCategoryId ?? ''}
+              onChange={(e) =>
+                setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)
+              }
+            >
+              <option value="">All categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Link to="/upload" className="btn btn--primary">Upload</Link>
+        </div>
       </div>
       {loading && <p className="page-muted">Loading…</p>}
       {error && (
@@ -80,9 +109,14 @@ export function HomePage({ user }: HomePageProps) {
           <Link to="/upload" className="btn btn--primary">Upload document</Link>
         </div>
       )}
-      {!loading && docs.length > 0 && (
+      {!loading && !error && docs.length > 0 && filteredDocs.length === 0 && (
+        <div className="card card--empty">
+          <p>No documents in this category.</p>
+        </div>
+      )}
+      {!loading && !error && filteredDocs.length > 0 && (
         <div className="doc-grid">
-          {docs.map((doc) => (
+          {filteredDocs.map((doc) => (
             <DocumentCard
               key={doc.id}
               doc={doc}

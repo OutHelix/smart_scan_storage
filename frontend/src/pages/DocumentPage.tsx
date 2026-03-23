@@ -108,6 +108,8 @@ export function DocumentPage({ user }: DocumentPageProps) {
           <dd>{formatDate(doc.created_at)}</dd>
           <dt>Size</dt>
           <dd>{formatSize(doc.file_size)}</dd>
+          <dt>Category</dt>
+          <dd>{doc.category?.name ?? 'Uncategorized'}</dd>
         </dl>
         <div className="doc-detail-actions">
           <button type="button" className="btn btn--primary" onClick={handleDownload}>

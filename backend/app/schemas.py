@@ -26,6 +26,14 @@ class LoginResponse(BaseModel):
     access_token: str
 
 
+class CategoryOut(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class DocumentOut(BaseModel):
     id: int
     user_id: int
@@ -34,6 +42,7 @@ class DocumentOut(BaseModel):
     mime_type: str | None
     file_size: int | None
     created_at: datetime
+    category: CategoryOut | None = None
 
     class Config:
         from_attributes = True

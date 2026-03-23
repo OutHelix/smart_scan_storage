@@ -124,6 +124,19 @@ body {
   flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
+.page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.page-category-select {
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #ef9a9a;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #333;
+}
 .page-title {
   margin: 0;
   font-size: 1.6rem;
@@ -302,6 +315,16 @@ body {
   padding: 0 0.25rem;
   line-height: 1.35;
 }
+.doc-card-category {
+  align-self: center;
+  margin: 0 0.75rem 0.4rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #ffebee;
+  color: #b71c1c;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
 .doc-card-meta {
   font-size: 0.78rem;
   color: #666;
@@ -341,6 +364,19 @@ body {
   margin: 0;
   font-size: 0.85rem;
   color: #888;
+}
+.upload-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.upload-category-select {
+  max-width: 280px;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #ef9a9a;
+  background: #fff;
 }
 
 /* Upload queue */

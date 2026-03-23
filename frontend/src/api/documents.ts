@@ -1,4 +1,4 @@
-import type { Document } from '../types'
+import type { Category, Document } from '../types'
 import { getToken } from './auth'
 import { getErrorMessage } from './auth'
 
@@ -18,9 +18,17 @@ export async function listDocuments(): Promise<Document[]> {
   return data as Document[]
 }
 
-export async function uploadDocument(file: File): Promise<Document> {
+export async function listCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_BASE}/categories`, { headers: authHeaders() })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(getErrorMessage(data, 'Failed to load categories'))
+  return data as Category[]
+}
+
+export async function uploadDocument(file: File, categoryId?: number): Promise<Document> {
   const form = new FormData()
   form.append('file', file)
+  if (categoryId != null) form.append('category_id', String(categoryId))
   const token = getToken()
   if (!token) throw new Error('Войдите в аккаунт для загрузки файлов')
   const res = await fetch(`${API_BASE}/documents/upload`, {
