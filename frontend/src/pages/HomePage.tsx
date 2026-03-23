@@ -25,18 +25,23 @@ export function HomePage({ user }: HomePageProps) {
   const [loading, setLoading] = useState(!!user)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user) {
-      setDocs([])
-      setLoading(false)
-      return
-    }
+  const loadDocuments = () => {
+    if (!user) return
     setLoading(true)
     setError(null)
     listDocuments()
       .then(setDocs)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (!user) {
+      setDocs([])
+      setLoading(false)
+      return
+    }
+    loadDocuments()
   }, [user])
 
   if (!user) {
@@ -61,7 +66,14 @@ export function HomePage({ user }: HomePageProps) {
         <Link to="/upload" className="btn btn--primary">Upload</Link>
       </div>
       {loading && <p className="page-muted">Loading…</p>}
-      {error && <p className="page-error">{error}</p>}
+      {error && (
+        <div className="card card--empty">
+          <p className="page-error">{error}</p>
+          <button type="button" className="btn btn--secondary" onClick={loadDocuments}>
+            Try again
+          </button>
+        </div>
+      )}
       {!loading && !error && docs.length === 0 && (
         <div className="card card--empty">
           <p>No documents yet. Upload your first file.</p>

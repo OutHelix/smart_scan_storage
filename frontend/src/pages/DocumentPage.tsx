@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { User } from '../types'
 import type { Document } from '../types'
 import { getDocument, downloadDocument, deleteDocument } from '../api/documents'
@@ -21,16 +21,14 @@ function formatSize(bytes: number | null) {
 
 export function DocumentPage({ user }: DocumentPageProps) {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    if (!user || !id) {
-      setLoading(false)
-      return
-    }
+  const loadDocument = () => {
+    if (!user || !id) return
     const numId = parseInt(id, 10)
     if (Number.isNaN(numId)) {
       setError('Invalid ID')
@@ -43,6 +41,14 @@ export function DocumentPage({ user }: DocumentPageProps) {
       .then(setDoc)
       .catch((e) => setError(e instanceof Error ? e.message : 'Error'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (!user || !id) {
+      setLoading(false)
+      return
+    }
+    loadDocument()
   }, [user, id])
 
   const handleDownload = () => {
@@ -56,7 +62,7 @@ export function DocumentPage({ user }: DocumentPageProps) {
     if (!doc || !window.confirm('Delete this document?')) return
     setDeleting(true)
     deleteDocument(doc.id)
-      .then(() => (window.location.href = '/'))
+      .then(() => navigate('/'))
       .catch((e) => {
         setError(e instanceof Error ? e.message : 'Delete failed')
         setDeleting(false)
@@ -79,7 +85,12 @@ export function DocumentPage({ user }: DocumentPageProps) {
     return (
       <div className="page">
         <p className="page-error">{error ?? 'Document not found'}</p>
-        <Link to="/" className="btn btn--secondary">Back to list</Link>
+        <div className="card-actions">
+          <button type="button" className="btn btn--secondary" onClick={loadDocument}>
+            Try again
+          </button>
+          <Link to="/" className="btn btn--secondary">Back to list</Link>
+        </div>
       </div>
     )
   }

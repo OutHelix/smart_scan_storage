@@ -47,7 +47,10 @@ export async function getDocumentPreviewUrl(id: number): Promise<string> {
   const res = await fetch(`${API_BASE}/documents/${id}/download`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error('Failed to load preview')
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(getErrorMessage(data, 'Failed to load preview'))
+  }
   const blob = await res.blob()
   return URL.createObjectURL(blob)
 }
@@ -58,12 +61,18 @@ export async function downloadDocument(id: number, filename: string): Promise<vo
   const res = await fetch(`${API_BASE}/documents/${id}/download`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error('Download failed')
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(getErrorMessage(data, 'Download failed'))
+  }
   const blob = await res.blob()
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
+  a.remove()
   URL.revokeObjectURL(a.href)
 }
 

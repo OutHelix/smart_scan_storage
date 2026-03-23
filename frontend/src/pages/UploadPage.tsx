@@ -13,6 +13,7 @@ export function UploadPage({ user }: UploadPageProps) {
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
   const navigate = useNavigate()
 
@@ -44,12 +45,15 @@ export function UploadPage({ user }: UploadPageProps) {
   const startUpload = async () => {
     if (!user || files.length === 0) return
     setUploading(true)
+    setUploadError(null)
     const next: { name: string; done: boolean; error?: string }[] = []
+    const successfulIndexes: number[] = []
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       try {
         await uploadDocument(file)
         next.push({ name: file.name, done: true })
+        successfulIndexes.push(i)
       } catch (err) {
         next.push({ name: file.name, done: false, error: err instanceof Error ? err.message : 'Error' })
       }
@@ -60,7 +64,11 @@ export function UploadPage({ user }: UploadPageProps) {
       setFiles([])
       setProgress([])
       navigate('/')
+      return
     }
+    setUploadError('Some files failed to upload. Fix issues and retry.')
+    setFiles((prev) => prev.filter((_, index) => !successfulIndexes.includes(index)))
+    setProgress(next.filter((p) => !p.done))
   }
 
   const removeFile = (index: number) => {
@@ -105,6 +113,7 @@ export function UploadPage({ user }: UploadPageProps) {
         </label>
         <p className="dropzone-hint">PDF, JPG, PNG, GIF, WEBP</p>
       </div>
+      {uploadError && <p className="page-error">{uploadError}</p>}
       {files.length > 0 && (
         <div className="upload-queue">
           <h3>Queue ({files.length})</h3>
