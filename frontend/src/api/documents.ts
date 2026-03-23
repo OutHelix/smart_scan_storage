@@ -25,10 +25,22 @@ export async function listCategories(): Promise<Category[]> {
   return data as Category[]
 }
 
-export async function uploadDocument(file: File, categoryId?: number): Promise<Document> {
+export type UploadOptions = {
+  categoryId?: number
+  useMl?: boolean
+}
+
+export async function uploadDocument(
+  file: File,
+  options?: UploadOptions | number
+): Promise<Document> {
   const form = new FormData()
   form.append('file', file)
+  const categoryId =
+    typeof options === 'number' ? options : options?.categoryId
+  const useMl = typeof options === 'object' && options?.useMl
   if (categoryId != null) form.append('category_id', String(categoryId))
+  if (useMl) form.append('use_ml', 'true')
   const token = getToken()
   if (!token) throw new Error('Войдите в аккаунт для загрузки файлов')
   const res = await fetch(`${API_BASE}/documents/upload`, {

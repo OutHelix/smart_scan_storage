@@ -13,6 +13,7 @@ export function UploadPage({ user }: UploadPageProps) {
   const [files, setFiles] = useState<File[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [useMl, setUseMl] = useState(false)
   const [loadingCategories, setLoadingCategories] = useState(false)
   const [categoriesError, setCategoriesError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -68,7 +69,10 @@ export function UploadPage({ user }: UploadPageProps) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       try {
-        await uploadDocument(file, categoryId ?? undefined)
+        await uploadDocument(
+          file,
+          useMl ? { useMl: true } : { categoryId: categoryId ?? undefined }
+        )
         next.push({ name: file.name, done: true })
         successfulIndexes.push(i)
       } catch (err) {
@@ -130,22 +134,37 @@ export function UploadPage({ user }: UploadPageProps) {
         </label>
         <p className="dropzone-hint">PDF, JPG, PNG, GIF, WEBP</p>
       </div>
-      <div className="upload-category">
-        <label htmlFor="category-select" className="dropzone-hint">Category</label>
-        <select
-          id="category-select"
-          className="upload-category-select"
-          value={categoryId ?? ''}
-          onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-          disabled={loadingCategories || categories.length === 0}
-        >
-          {categories.length === 0 && <option value="">No categories</option>}
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+      <div className="upload-options">
+        <label className="upload-option-row">
+          <input
+            type="checkbox"
+            checked={useMl}
+            onChange={(e) => setUseMl(e.target.checked)}
+          />
+          <span className="upload-option-label">Auto-categorize with AI</span>
+        </label>
+        {!useMl && (
+          <div className="upload-category">
+            <label htmlFor="category-select" className="dropzone-hint">Category</label>
+            <select
+              id="category-select"
+              className="upload-category-select"
+              value={categoryId ?? ''}
+              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+              disabled={loadingCategories || categories.length === 0}
+            >
+              {categories.length === 0 && <option value="">No categories</option>}
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {useMl && (
+          <p className="upload-ml-hint">AI will analyze filenames and assign the best category.</p>
+        )}
         {categoriesError && <p className="page-error">{categoriesError}</p>}
       </div>
       {uploadError && <p className="page-error">{uploadError}</p>}

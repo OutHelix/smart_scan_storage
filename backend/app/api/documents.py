@@ -1,3 +1,4 @@
+import logging
 import uuid
 from pathlib import Path
 from typing import List
@@ -11,6 +12,9 @@ from app.config import settings
 from app.database import get_db
 from app.core.security import get_current_user
 from app.models import User
+from app.ml.predictor import predict_category
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = Path(settings.UPLOAD_DIR)
@@ -25,10 +29,15 @@ def _allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
 
+def _parse_use_ml(value: str | None) -> bool:
+    return str(value).lower() in ("true", "1", "yes") if value else False
+
+
 @router.post("/upload", response_model=schemas.DocumentOut)
 def upload_document(
     file: UploadFile = File(...),
     category_id: int | None = Form(None),
+    use_ml: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -46,11 +55,29 @@ def upload_document(
     try:
         with open(file_path, "wb") as f:
             f.write(content)
-    except OSError as e:
+    except OSError:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save file")
-    if category_id is not None and not crud.get_category_by_id(db, category_id=category_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category not found")
     mime_type = file.content_type
+
+    # Resolve category: ML prediction or manual selection
+    if _parse_use_ml(use_ml):
+        try:
+            predicted_name = predict_category(file.filename, mime_type)
+            cat = crud.get_category_by_name(db, predicted_name)
+            category_id = cat.id if cat else None
+            if cat:
+                logger.info("ML assigned category: %s", predicted_name)
+            else:
+                fallback = crud.get_category_by_name(db, "Misc")
+                category_id = fallback.id if fallback else None
+        except Exception as e:
+            logger.warning("ML predictor failed, falling back to Misc: %s", e)
+            fallback = crud.get_category_by_name(db, "Misc")
+            category_id = fallback.id if fallback else None
+    elif category_id is not None:
+        if not crud.get_category_by_id(db, category_id=category_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category not found")
+
     doc = crud.create_document(
         db=db,
         user_id=current_user.id,
@@ -70,6 +97,18 @@ def list_documents(
 ):
     docs = crud.get_documents_by_user(db, user_id=current_user.id)
     return docs
+
+
+@router.get("/predict-category", response_model=dict)
+def predict_document_category(
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Preview which category ML would assign to a filename."""
+    predicted_name = predict_category(filename, None)
+    cat = crud.get_category_by_name(db, predicted_name)
+    return {"filename": filename, "suggested_category": predicted_name, "category_id": cat.id if cat else None}
 
 
 @router.get("/{doc_id}", response_model=schemas.DocumentOut)

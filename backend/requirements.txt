@@ -9,3 +9,4 @@ pydantic-settings==2.4.0
 pydantic[email]
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.9
+scikit-learn==1.5.2
