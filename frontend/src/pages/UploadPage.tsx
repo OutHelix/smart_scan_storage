@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { Category, User } from '../types'
-import { listCategories, uploadDocument } from '../api/documents'
+import type { Category, User, UploadStatus } from '../types'
+import { getUploadStatus, listCategories, uploadDocument } from '../api/documents'
 
 const ALLOWED = '.pdf,.jpg,.jpeg,.png,.gif,.webp'
 
@@ -9,22 +9,108 @@ type UploadPageProps = {
   user: User | null
 }
 
+type UploadItemProgress = {
+  name: string
+  done: boolean
+  status: 'queued' | 'uploading' | 'processing' | 'done' | 'error'
+  percent?: number
+  stage?: string
+  details?: Record<string, unknown>
+  error?: string
+}
+
+function createUploadId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function humanizeStage(stage?: string) {
+  switch (stage) {
+    case 'request_received': return 'Request received'
+    case 'file_saved': return 'File saved'
+    case 'ml_start': return 'Starting ML pipeline'
+    case 'image_loaded': return 'Image loaded'
+    case 'classification': return 'Running classification'
+    case 'classification_complete': return 'Classification complete'
+    case 'ocr_start': return 'Starting OCR'
+    case 'ocr_detecting': return 'Detecting text boxes'
+    case 'ocr_generating': return 'Recognizing text'
+    case 'ocr_fallback': return 'Using OCR fallback'
+    case 'ocr_complete': return 'OCR complete'
+    case 'ml_complete': return 'ML complete'
+    case 'pdf_fallback': return 'PDF fallback'
+    case 'saving_document': return 'Saving document'
+    case 'completed': return 'Completed'
+    case 'error': return 'Error'
+    default: return stage ?? 'Waiting'
+  }
+}
+
+function formatUploadDetails(status?: UploadStatus | null) {
+  if (!status) return 'Waiting for server status...'
+  const details = status.details ?? {}
+  if (status.stage === 'classification_complete') {
+    const predicted = details.predicted_class
+    const confidence = typeof details.confidence === 'number'
+      ? `${(details.confidence * 100).toFixed(1)}%`
+      : null
+    return predicted && confidence
+      ? `Predicted class: ${predicted} (${confidence})`
+      : 'Classification complete'
+  }
+  if (status.stage === 'ocr_detecting' && typeof details.detected_boxes === 'number') {
+    return `Detected text boxes: ${details.detected_boxes}`
+  }
+  if (status.stage === 'ocr_generating') {
+    const completed = details.completed_crops
+    const total = details.total_crops
+    if (typeof completed === 'number' && typeof total === 'number') {
+      return `OCR crops processed: ${completed} / ${total}`
+    }
+  }
+  if (status.stage === 'ocr_fallback' && typeof details.reason === 'string') {
+    return `Fallback reason: ${details.reason}`
+  }
+  if (status.stage === 'completed' && typeof details.document_id === 'number') {
+    return `Document ID: ${details.document_id}`
+  }
+  if (status.stage === 'error' && typeof details.message === 'string') {
+    return details.message
+  }
+  if (typeof details.message === 'string') {
+    return details.message
+  }
+  return humanizeStage(status.stage)
+}
+
 export function UploadPage({ user }: UploadPageProps) {
   const [files, setFiles] = useState<File[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState<number | null>(null)
-  const [useMl, setUseMl] = useState(false)
+  const [useMl, setUseMl] = useState(true)
   const [loadingCategories, setLoadingCategories] = useState(false)
   const [categoriesError, setCategoriesError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
+  const [progress, setProgress] = useState<UploadItemProgress[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
+  const [currentFileName, setCurrentFileName] = useState<string | null>(null)
+  const [serverStatus, setServerStatus] = useState<UploadStatus | null>(null)
+  const pollingRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
   const allowed = (f: File) => {
     const ext = '.' + (f.name.split('.').pop() ?? '').toLowerCase()
     return ALLOWED.split(',').includes(ext)
+  }
+
+  const stopPolling = () => {
+    if (pollingRef.current != null) {
+      window.clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -54,42 +140,116 @@ export function UploadPage({ user }: UploadPageProps) {
     listCategories()
       .then((data) => {
         setCategories(data)
-        setCategoryId(data[0]?.id ?? null)
+        if (data.length > 0) {
+          setCategoryId(data[0].id)
+        }
       })
       .catch((err) => setCategoriesError(err instanceof Error ? err.message : 'Failed to load categories'))
       .finally(() => setLoadingCategories(false))
   }, [user])
 
+  useEffect(() => () => stopPolling(), [])
+
   const startUpload = async () => {
     if (!user || files.length === 0) return
+
     setUploading(true)
     setUploadError(null)
-    const next: { name: string; done: boolean; error?: string }[] = []
+
+    const next: UploadItemProgress[] = files.map((file) => ({
+      name: file.name,
+      done: false,
+      status: 'queued',
+      percent: 0,
+    }))
     const successfulIndexes: number[] = []
+    setProgress(next)
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
+      const uploadId = createUploadId()
+      setCurrentFileName(file.name)
+      setServerStatus(null)
+      next[i] = { name: file.name, done: false, status: 'uploading', percent: 1, stage: 'queued' }
+      setProgress([...next])
+
+      const pollStatus = async () => {
+        try {
+          const status = await getUploadStatus(uploadId)
+          setServerStatus(status)
+          next[i] = {
+            name: file.name,
+            done: status.stage === 'completed',
+            status: status.stage === 'completed'
+              ? 'done'
+              : status.stage === 'error'
+                ? 'error'
+                : status.percent >= 20
+                  ? 'processing'
+                  : 'uploading',
+            percent: status.percent,
+            stage: status.stage,
+            details: status.details,
+            error: status.stage === 'error' && typeof status.details.message === 'string'
+              ? status.details.message
+              : undefined,
+          }
+          setProgress([...next])
+        } catch {}
+      }
+
+      await pollStatus()
+      pollingRef.current = window.setInterval(() => {
+        void pollStatus()
+      }, 1000)
+
       try {
         await uploadDocument(
           file,
-          useMl ? { useMl: true } : { categoryId: categoryId ?? undefined }
+          useMl
+            ? { useMl: true, uploadId }
+            : { categoryId: categoryId ?? undefined, uploadId }
         )
-        next.push({ name: file.name, done: true })
+        await pollStatus()
+        stopPolling()
+        next[i] = {
+          ...next[i],
+          done: true,
+          status: 'done',
+          percent: 100,
+          stage: 'completed',
+        }
         successfulIndexes.push(i)
       } catch (err) {
-        next.push({ name: file.name, done: false, error: err instanceof Error ? err.message : 'Error' })
+        stopPolling()
+        await pollStatus()
+        next[i] = {
+          ...next[i],
+          done: false,
+          status: 'error',
+          percent: next[i]?.percent ?? 0,
+          error: err instanceof Error ? err.message : 'Upload failed',
+        }
       }
+
       setProgress([...next])
     }
+
+    stopPolling()
     setUploading(false)
-    if (next.every((p) => p.done)) {
+    setCurrentFileName(null)
+
+    if (next.every((item) => item.done)) {
       setFiles([])
       setProgress([])
-      navigate('/')
+      setServerStatus(null)
+      setTimeout(() => navigate('/'), 500)
       return
     }
+
     setUploadError('Some files failed to upload. Fix issues and retry.')
     setFiles((prev) => prev.filter((_, index) => !successfulIndexes.includes(index)))
-    setProgress(next.filter((p) => !p.done))
+    setProgress(next.filter((item) => !item.done))
   }
 
   const removeFile = (index: number) => {
@@ -109,11 +269,15 @@ export function UploadPage({ user }: UploadPageProps) {
     )
   }
 
+  const completedCount = progress.filter((item) => item.done).length
+  const activeProgress = progress.find((item) => !item.done && item.status !== 'error') ?? null
+  const activePercent = activeProgress?.percent ?? 0
+
   return (
     <div className="page">
       <div className="page-head">
         <h1 className="page-title">Upload documents</h1>
-        <Link to="/" className="btn btn--secondary">← Back</Link>
+        <Link to="/" className="btn btn--secondary">Back</Link>
       </div>
       <div
         className={`dropzone ${drag ? 'dropzone--active' : ''}`}
@@ -141,7 +305,7 @@ export function UploadPage({ user }: UploadPageProps) {
             checked={useMl}
             onChange={(e) => setUseMl(e.target.checked)}
           />
-          <span className="upload-option-label">Auto-categorize with AI</span>
+          <span className="upload-option-label">Auto-categorize with AI (recommended)</span>
         </label>
         {!useMl && (
           <div className="upload-category">
@@ -163,7 +327,7 @@ export function UploadPage({ user }: UploadPageProps) {
           </div>
         )}
         {useMl && (
-          <p className="upload-ml-hint">AI will analyze filenames and assign the best category.</p>
+          <p className="upload-ml-hint">AI will analyze the document content and assign the most appropriate category automatically.</p>
         )}
         {categoriesError && <p className="page-error">{categoriesError}</p>}
       </div>
@@ -171,11 +335,40 @@ export function UploadPage({ user }: UploadPageProps) {
       {files.length > 0 && (
         <div className="upload-queue">
           <h3>Queue ({files.length})</h3>
+          {uploading && (
+            <div className="upload-progress-card">
+              <div className="upload-progress-head">
+                <strong>Document processing</strong>
+                <span>{completedCount} / {files.length}</span>
+              </div>
+              <div className="upload-progress-bar">
+                <div
+                  className="upload-progress-bar-fill"
+                  style={{ width: `${Math.max(activePercent, 2)}%` }}
+                />
+              </div>
+              <div className="upload-progress-metrics">
+                <span>{activePercent.toFixed(0)}%</span>
+                <span>{humanizeStage(serverStatus?.stage ?? activeProgress?.stage)}</span>
+              </div>
+              <p className="page-muted upload-progress-text">
+                {currentFileName ? `Current file: ${currentFileName}` : 'Preparing upload...'}
+              </p>
+              <p className="page-muted upload-progress-text">
+                {formatUploadDetails(serverStatus)}
+              </p>
+            </div>
+          )}
           <ul className="upload-list">
             {files.map((f, i) => (
               <li key={`${f.name}-${i}`} className="upload-item">
                 <span className="upload-name">{f.name}</span>
-                {progress[i]?.done && <span className="upload-status upload-status--ok">✓</span>}
+                {typeof progress[i]?.percent === 'number' && (
+                  <span className="upload-status upload-status--percent">{progress[i]?.percent?.toFixed(0)}%</span>
+                )}
+                {progress[i]?.status === 'uploading' && <span className="upload-status upload-status--run">Uploading</span>}
+                {progress[i]?.status === 'processing' && <span className="upload-status upload-status--run">{humanizeStage(progress[i]?.stage)}</span>}
+                {progress[i]?.status === 'done' && <span className="upload-status upload-status--ok">Uploaded</span>}
                 {progress[i]?.error && (
                   <span className="upload-status upload-status--err">{progress[i].error}</span>
                 )}
@@ -193,7 +386,7 @@ export function UploadPage({ user }: UploadPageProps) {
             onClick={startUpload}
             disabled={uploading}
           >
-            {uploading ? 'Uploading…' : 'Upload all'}
+            {uploading ? 'Uploading...' : `Upload ${files.length} file${files.length > 1 ? 's' : ''}`}
           </button>
         </div>
       )}

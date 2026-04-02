@@ -14,16 +14,28 @@ class UserLogin(BaseModel):
 
 class UserOut(UserBase):
     id: int
+    is_admin: bool = False
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
+class UserUpdate(BaseModel):
+    username: str
+    email: EmailStr
+
+
 class LoginResponse(BaseModel):
     message: str
     user: UserOut
     access_token: str
+
+
+class ServiceLogsResponse(BaseModel):
+    source: str
+    line_count: int
+    lines: list[str]
 
 
 class CategoryOut(BaseModel):
@@ -43,6 +55,9 @@ class DocumentOut(BaseModel):
     file_size: int | None
     created_at: datetime
     category: CategoryOut | None = None
+    ocr_text: str | None = None
+    predicted_confidence: float | None = None
+    predicted_category_name: str | None = None
 
     class Config:
         from_attributes = True

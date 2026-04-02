@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import type { User } from '../types'
-import type { Category, Document } from '../types'
+import type { User, Category, Document } from '../types'
 import { listCategories, listDocuments } from '../api/documents'
 import { DocumentCard } from '../components/DocumentCard'
+import { loadWorkspaceSettings } from '../workspaceSettings'
 
 type HomePageProps = {
   user: User | null
@@ -26,8 +26,9 @@ export function HomePage({ user }: HomePageProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [loading, setLoading] = useState(!!user)
   const [error, setError] = useState<string | null>(null)
+  const [settingsVersion, setSettingsVersion] = useState(0)
 
-  const loadDocuments = () => {
+  const loadDocuments = useCallback(() => {
     if (!user) return
     setLoading(true)
     setError(null)
@@ -35,7 +36,7 @@ export function HomePage({ user }: HomePageProps) {
       .then(setDocs)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false))
-  }
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -47,8 +48,17 @@ export function HomePage({ user }: HomePageProps) {
     loadDocuments()
     listCategories()
       .then(setCategories)
-      .catch(() => {})
-  }, [user])
+      .catch((e) => console.error('Failed to load categories:', e))
+  }, [user, loadDocuments])
+
+  useEffect(() => {
+    const onFocus = () => setSettingsVersion((value) => value + 1)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
+  const settings = loadWorkspaceSettings()
+  void settingsVersion
 
   const filteredDocs =
     selectedCategoryId === null
@@ -83,18 +93,21 @@ export function HomePage({ user }: HomePageProps) {
                 setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)
               }
             >
-              <option value="">All categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
+              <option value="">All categories ({docs.length})</option>
+              {categories.map((cat) => {
+                const count = docs.filter((d) => d.category?.id === cat.id).length
+                return (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} ({count})
+                  </option>
+                )
+              })}
             </select>
           )}
           <Link to="/upload" className="btn btn--primary">Upload</Link>
         </div>
       </div>
-      {loading && <p className="page-muted">Loading…</p>}
+      {loading && <p className="page-muted">Loading...</p>}
       {error && (
         <div className="card card--empty">
           <p className="page-error">{error}</p>
@@ -115,13 +128,16 @@ export function HomePage({ user }: HomePageProps) {
         </div>
       )}
       {!loading && !error && filteredDocs.length > 0 && (
-        <div className="doc-grid">
+        <div className={settings.compactCards ? 'doc-grid doc-grid--compact' : 'doc-grid'}>
           {filteredDocs.map((doc) => (
             <DocumentCard
               key={doc.id}
               doc={doc}
               formatDate={formatDate}
               formatSize={formatSize}
+              compact={settings.compactCards}
+              showConfidence={settings.showConfidence}
+              autoOpenPreview={settings.autoOpenPreview}
             />
           ))}
         </div>

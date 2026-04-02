@@ -74,7 +74,7 @@ export function RegisterPage({ onLogin }: RegisterPageProps) {
           </div>
           <div className="auth-actions">
             <button type="submit" className="btn btn--primary" disabled={loading}>
-              {loading ? 'Creating account…' : 'Sign up'}
+              {loading ? 'Creating account...' : 'Sign up'}
             </button>
             <span className="auth-meta">
               Already have an account? <Link to="/login">Log in</Link>

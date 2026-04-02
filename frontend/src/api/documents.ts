@@ -1,4 +1,4 @@
-import type { Category, Document } from '../types'
+import type { Category, Document, UploadStatus } from '../types'
 import { getToken } from './auth'
 import { getErrorMessage } from './auth'
 
@@ -25,9 +25,17 @@ export async function listCategories(): Promise<Category[]> {
   return data as Category[]
 }
 
+export async function getHealthcheck(): Promise<unknown> {
+  const res = await fetch('/health')
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(getErrorMessage(data, 'Failed to load healthcheck'))
+  return data
+}
+
 export type UploadOptions = {
   categoryId?: number
   useMl?: boolean
+  uploadId?: string
 }
 
 export async function uploadDocument(
@@ -39,10 +47,12 @@ export async function uploadDocument(
   const categoryId =
     typeof options === 'number' ? options : options?.categoryId
   const useMl = typeof options === 'object' && options?.useMl
+  const uploadId = typeof options === 'object' ? options?.uploadId : undefined
   if (categoryId != null) form.append('category_id', String(categoryId))
   if (useMl) form.append('use_ml', 'true')
+  if (uploadId) form.append('upload_id', uploadId)
   const token = getToken()
-  if (!token) throw new Error('Войдите в аккаунт для загрузки файлов')
+  if (!token) throw new Error('Sign in to upload files')
   const res = await fetch(`${API_BASE}/documents/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -53,6 +63,13 @@ export async function uploadDocument(
   return data as Document
 }
 
+export async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
+  const res = await fetch(`${API_BASE}/documents/upload-status/${uploadId}`, { headers: authHeaders() })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(getErrorMessage(data, 'Failed to load upload status'))
+  return data as UploadStatus
+}
+
 export async function getDocument(id: number): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents/${id}`, { headers: authHeaders() })
   const data = await res.json().catch(() => null)
@@ -60,7 +77,13 @@ export async function getDocument(id: number): Promise<Document> {
   return data as Document
 }
 
-/** Fetches file and returns an object URL for preview (e.g. in <img>). Caller must revoke the URL when done. */
+export async function getDocumentOcr(id: number): Promise<{ ocr_text: string | null; predicted_confidence: number | null; predicted_category_name: string | null }> {
+  const res = await fetch(`${API_BASE}/documents/${id}/ocr`, { headers: authHeaders() })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(getErrorMessage(data, 'Failed to load OCR data'))
+  return data
+}
+
 export async function getDocumentPreviewUrl(id: number): Promise<string> {
   const token = getToken()
   if (!token) throw new Error('Sign in to view')

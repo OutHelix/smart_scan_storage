@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Float, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -11,6 +11,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan")
 
@@ -25,9 +26,16 @@ class Document(Base):
     mime_type = Column(String, nullable=True)
     file_size = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    ocr_text = Column(Text, nullable=True)
+    predicted_confidence = Column(Float, nullable=True)
+    predicted_category_name = Column(String, nullable=True)
     owner = relationship("User", back_populates="documents")
     category_link = relationship("DocumentCategory", back_populates="document", uselist=False, cascade="all, delete-orphan")
-    category = relationship("Category", secondary="document_categories", uselist=False, viewonly=True)
+    category = None
+
+    @property
+    def category_id(self):
+        return self.category_link.category_id if self.category_link else None
 
 
 class Category(Base):

@@ -60,7 +60,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </div>
           <div className="auth-actions">
             <button type="submit" className="btn btn--primary" disabled={loading}>
-              {loading ? 'Signing in…' : 'Log in'}
+              {loading ? 'Signing in...' : 'Log in'}
             </button>
             <span className="auth-meta">
               No account? <Link to="/register">Sign up</Link>

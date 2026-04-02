@@ -7,6 +7,9 @@ type DocumentCardProps = {
   doc: Document
   formatDate: (s: string) => string
   formatSize: (bytes: number | null) => string
+  compact?: boolean
+  showConfidence?: boolean
+  autoOpenPreview?: boolean
 }
 
 function isImageMime(mime: string | null): boolean {
@@ -17,7 +20,14 @@ function isPdfMime(mime: string | null): boolean {
   return !!mime && mime.includes('pdf')
 }
 
-export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps) {
+export function DocumentCard({
+  doc,
+  formatDate,
+  formatSize,
+  compact = false,
+  showConfidence = true,
+  autoOpenPreview = true,
+}: DocumentCardProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
   const urlRef = useRef<string | null>(null)
@@ -25,7 +35,7 @@ export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps)
   const showPdfPlaceholder = isPdfMime(doc.mime_type)
 
   useEffect(() => {
-    if (!showImagePreview) return
+    if (!showImagePreview || !autoOpenPreview) return
     let cancelled = false
     getDocumentPreviewUrl(doc.id)
       .then((url) => {
@@ -51,7 +61,7 @@ export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps)
   }, [doc.id, showImagePreview])
 
   return (
-    <Link to={`/doc/${doc.id}`} className="doc-card">
+    <Link to={`/doc/${doc.id}`} className={compact ? 'doc-card doc-card--compact' : 'doc-card'}>
       <div className="doc-card-preview">
         {showImagePreview && previewUrl && !previewError && (
           <img
@@ -60,8 +70,11 @@ export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps)
             className="doc-card-preview-img"
           />
         )}
-        {showImagePreview && (previewError || !previewUrl) && (
+        {showImagePreview && autoOpenPreview && (previewError || !previewUrl) && (
           <span className="doc-card-preview-fallback">Image</span>
+        )}
+        {showImagePreview && !autoOpenPreview && (
+          <span className="doc-card-preview-fallback">Preview on open</span>
         )}
         {showPdfPlaceholder && (
           <div className="doc-card-preview-pdf">
@@ -74,9 +87,14 @@ export function DocumentCard({ doc, formatDate, formatSize }: DocumentCardProps)
       </div>
       <div className="doc-card-name">{doc.original_filename}</div>
       {doc.category && <div className="doc-card-category">{doc.category.name}</div>}
+      {showConfidence && doc.predicted_confidence != null && (
+        <div className="doc-card-confidence">
+          ML confidence {`${(doc.predicted_confidence * 100).toFixed(1)}%`}
+        </div>
+      )}
       <div className="doc-card-meta">
         {formatDate(doc.created_at)}
-        {doc.file_size != null && ` · ${formatSize(doc.file_size)}`}
+        {doc.file_size != null && ` | ${formatSize(doc.file_size)}`}
       </div>
     </Link>
   )

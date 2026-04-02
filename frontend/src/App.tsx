@@ -4,10 +4,11 @@ import { Layout } from './components/Layout'
 import { HomePage } from './pages/HomePage'
 import { UploadPage } from './pages/UploadPage'
 import { DocumentPage } from './pages/DocumentPage'
-import { StitchPage } from './pages/StitchPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AccountPage } from './pages/AccountPage'
+import { HealthPage } from './pages/HealthPage'
+import { AdminLogsPage } from './pages/AdminLogsPage'
 import { clearToken } from './api/auth'
 import type { User } from './types'
 
@@ -20,9 +21,7 @@ function App() {
       try {
         const parsed = JSON.parse(stored) as User
         setUser(parsed)
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
   }, [])
 
@@ -37,6 +36,11 @@ function App() {
     clearToken()
   }
 
+  const handleUserUpdate = (nextUser: User) => {
+    setUser(nextUser)
+    localStorage.setItem('sss_user', JSON.stringify(nextUser))
+  }
+
   return (
     <BrowserRouter>
       <Routes>
@@ -44,10 +48,11 @@ function App() {
           <Route index element={<HomePage user={user} />} />
           <Route path="upload" element={<UploadPage user={user} />} />
           <Route path="doc/:id" element={<DocumentPage user={user} />} />
-          <Route path="stitch" element={<StitchPage />} />
           <Route path="login" element={<LoginPage onLogin={handleLogin} />} />
           <Route path="register" element={<RegisterPage onLogin={handleLogin} />} />
-          <Route path="account" element={<AccountPage user={user} />} />
+          <Route path="account" element={<AccountPage user={user} onUserUpdate={handleUserUpdate} />} />
+          <Route path="admin/logs" element={<AdminLogsPage user={user} />} />
+          <Route path="health" element={<HealthPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

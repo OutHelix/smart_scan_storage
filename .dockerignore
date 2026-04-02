@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.DS_Store
+**/.venv
+**/node_modules
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+backend/uploads
+backend/*.db
+*.db
+

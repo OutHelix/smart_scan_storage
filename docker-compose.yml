@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: smart-scan-backend
+    environment:
+      DATABASE_URL: sqlite:////data/smart_scan_storage.db
+      UPLOAD_DIR: /data/uploads
+      LOG_DIR: /data/logs
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      SECRET_KEY: change-me-in-production-use-env
+    volumes:
+      - backend_data:/data
+    ports:
+      - "8000:8000"
+    networks:
+      - smart_scan
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: smart-scan-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - smart_scan
+    restart: unless-stopped
+
+networks:
+  smart_scan:
+    driver: bridge
+
+volumes:
+  backend_data:

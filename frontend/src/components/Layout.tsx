@@ -6,15 +6,14 @@ type LayoutProps = {
   onLogout: () => void
 }
 
-const nav = [
-  { to: '/', label: 'Home' },
-  { to: '/upload', label: 'Upload' },
-  { to: '/account', label: 'Account' },
-  { to: '/stitch', label: 'Stitch' },
-]
-
 export function Layout({ user, onLogout }: LayoutProps) {
   const location = useLocation()
+  const nav = [
+    { to: '/', label: 'Home' },
+    { to: '/upload', label: 'Upload' },
+    { to: '/account', label: 'Account' },
+    ...(user?.is_admin ? [{ to: '/admin/logs', label: 'Logs' }] : []),
+  ]
 
   return (
     <div className="layout">
@@ -69,6 +68,16 @@ export function Layout({ user, onLogout }: LayoutProps) {
       <main className="layout-main">
         <Outlet />
       </main>
+      <footer className="layout-footer">
+        <div className="layout-footer-links">
+          <Link to="/health" target="_blank" rel="noreferrer" className="layout-footer-link">
+            Healthcheck
+          </Link>
+          <a href="/docs" target="_blank" rel="noreferrer" className="layout-footer-link">
+            API docs
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }
