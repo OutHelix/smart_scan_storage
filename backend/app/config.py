@@ -2,7 +2,7 @@ import os
 
 class Settings:
     API_TITLE = "Smart Scan Storage API"
-    API_VERSION = "0.0.1"
+    API_VERSION = "1.0.0"
     API_PREFIX = "/api/v1"
     DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./smart_scan_storage.db")
     CORS_ORIGINS = os.environ.get(
